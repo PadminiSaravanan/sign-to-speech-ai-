@@ -60,8 +60,6 @@
       background: #0f172a; color: #fff; font-size: 13px;
     }
     #saveSignBtn { background: #8b5cf6; }
-    #exportBtn { background: #0284c7; }
-    #importBtn { background: #0d9488; }
     #resetCustomBtn { background: #475569; }
     #startOverlay {
       position: fixed; inset: 0; background: #0f172a; z-index: 50;
@@ -80,12 +78,14 @@
     <p style="color:#94a3b8; margin-top:8px; max-width:320px; font-size:14px;">
       Automatic ASL • BSL • ISL Detection • Live Sentence Builder • Expandable AI Vocabulary
     </p>
-    <button id="startBtn" type="button" onclick="startApp()">Start Camera &amp; Voice</button>
-    <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Ready v11 — Tap button</p>
+    <button id="startBtn" type="button" onclick="document.getElementById('loadingMsg').textContent='Step 1: Opening camera...'; startApp();">
+      Start Camera &amp; Voice
+    </button>
+    <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Ready v12 — Tap button</p>
   </div>
 
   <div id="header">
-    <div id="title">Universal Sign AI v11</div>
+    <div id="title">Universal Sign AI v12</div>
     <div class="hdr-btns">
       <button id="trainToggleBtn" class="pill-btn" type="button" onclick="toggleTrain()">+ Add Sign</button>
       <button id="voiceBtn" class="pill-btn active" type="button" onclick="toggleVoice()">Voice: ON</button>
@@ -120,10 +120,7 @@
         <div class="train-row">
           <input id="customWordInput" type="text" placeholder="e.g. Namaste / Emergency / Mother" />
           <button id="saveSignBtn" class="act-btn" type="button" onclick="saveCustomSign()">Save</button>
-          <button id="exportBtn" class="act-btn" type="button" onclick="exportSigns()">Export</button>
-          <button id="importBtn" class="act-btn" type="button" onclick="document.getElementById('importFile').click()">Import</button>
           <button id="resetCustomBtn" class="act-btn" type="button" onclick="clearCustomSigns()">Reset</button>
-          <input id="importFile" type="file" accept=".json" style="display:none" onchange="importSigns(event)" />
         </div>
         <div id="customCount" style="font-size:11px; color:#94a3b8;">Custom trained signs: 0</div>
       </div>
@@ -132,11 +129,6 @@
 
   <script src="./hands.js"></script>
   <script>
-    window.onerror = function(msg, url, line) {
-      const el = document.getElementById("loadingMsg");
-      if (el) el.textContent = "JS Error (line " + line + "): " + msg;
-    };
-
     const video = document.getElementById("webcam");
     const canvas = document.getElementById("overlay");
     const ctx = canvas.getContext("2d");
@@ -161,17 +153,8 @@
     let latestHandCount = 0;
     let customSigns = new Array();
 
-    try {
-      const savedRaw = localStorage.getItem("universalSignsV1");
-      if (savedRaw) customSigns = JSON.parse(savedRaw);
-    } catch (e) {
-      customSigns = new Array();
-    }
-
     const HOLD_MS = 1200;
     const CONN_PAIRS = "0-1,1-2,2-3,3-4,0-5,5-6,6-7,7-8,5-9,9-10,10-11,11-12,9-13,13-14,14-15,15-16,13-17,17-18,18-19,19-20,0-17".split(",");
-
-    updateCustomCount();
 
     function toggleVoice() {
       voiceEnabled = !voiceEnabled;
@@ -232,58 +215,30 @@
     }
 
     function saveCustomSign() {
+      const word = customWordInput.value.trim();
+      if (!word) { alert("Type a word or phrase first!"); return; }
+      if (!latestFeatureVec) { alert("Hold your hand(s) in front of the camera first!"); return; }
+      customSigns.push({
+        label: word.toUpperCase() + " (TRAINED)",
+        word: word,
+        hands: latestHandCount,
+        vec: latestFeatureVec
+      });
+      customWordInput.value = "";
+      updateCustomCount();
+      speakText("Saved " + word);
+    }
+
+    function clearCustomSigns() {
+      customSigns = new Array();
+      updateCustomCount();
+    }
+
+    function matchCustomSign(vec, handCount) {
+      if (!vec || customSigns.length === 0) return null;
+      let bestDist = Infinity;
+      let bestItem = null;
 Use code with caution.
-const word = customWordInput.value.trim();
-if (!word) { alert("Type a word or phrase first!"); return; }
-if (!latestFeatureVec) { alert("Hold your hand(s) in front of the camera first!"); return; }
-customSigns.push({
-label: word.toUpperCase() + " (TRAINED)",
-word: word,
-hands: latestHandCount,
-vec: latestFeatureVec
-});
-localStorage.setItem("universalSignsV1", JSON.stringify(customSigns));
-customWordInput.value = "";
-updateCustomCount();
-speakText("Saved " + word);
-}
-function exportSigns() {
-const blob = new Blob(new Array(JSON.stringify(customSigns, null, 2)), { type: "application/json" });
-const url = URL.createObjectURL(blob);
-const a = document.createElement("a");
-a.href = url;
-a.download = "sign_vocabulary.json";
-a.click();
-URL.revokeObjectURL(url);
-}
-function importSigns(event) {
-const file = event.target.files.item(0);
-if (!file) return;
-const reader = new FileReader();
-reader.onload = (e) => {
-try {
-const imported = JSON.parse(e.target.result);
-if (Array.isArray(imported)) {
-customSigns = customSigns.concat(imported);
-localStorage.setItem("universalSignsV1", JSON.stringify(customSigns));
-updateCustomCount();
-speakText("Imported " + imported.length + " signs");
-}
-} catch (err) {
-alert("Invalid JSON file");
-}
-};
-reader.readAsText(file);
-}
-function clearCustomSigns() {
-customSigns = new Array();
-localStorage.removeItem("universalSignsV1");
-updateCustomCount();
-}
-function matchCustomSign(vec, handCount) {
-if (!vec || customSigns.length === 0) return null;
-let bestDist = Infinity;
-let bestItem = null;
 for (const item of customSigns) {
 if (item.hands !== handCount || item.vec.length !== vec.length) continue;
 let sumSq = 0;
@@ -406,17 +361,16 @@ if (s.key === "0,1,1,1,1") return { label: "THANK YOU / FOUR (ASL B)", word: "Th
 return null;
 }
 async function startApp() {
-loadingMsg.textContent = "Button tapped! Starting camera...";
 startBtn.disabled = true;
 try {
 if (typeof Hands === "undefined") {
-throw new Error("hands.js did not load! Make sure hands.js is uploaded to your GitHub repo.");
+throw new Error("hands.js not loaded! Upload hands.js to GitHub.");
 }
 if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
 video.srcObject = stream;
 await video.play();
-loadingMsg.textContent = "Camera ready! Loading AI Hand Model...";
+loadingMsg.textContent = "Step 2: Loading AI Hand Model...";
 const hands = new Hands({ locateFile: (file) => "./" + file });
 hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.45, minTrackingConfidence: 0.45 });
 hands.onResults((results) => {
