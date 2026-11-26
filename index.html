@@ -124,9 +124,10 @@
                 ctx.fill();
               }
               const res = classifyGesture(lm);
-              signLabel.textContent = res.label;
-              statusText.textContent = res.speak ? `Speaking: "${res.speak}"` : "Hand tracked";
-              speak(res.speak);
+                const palmWidth = Math.hypot(p5.x - p17.x, p5.y - p17.y);
+   const thumbSpread = Math.hypot(p4.x - p5.x, p4.y - p5.y);
+   const thumb = thumbSpread > palmWidth * 0.75 ? 1 : 0;
+
             }
           } else {
             signLabel.textContent = "No Hand Detected";
