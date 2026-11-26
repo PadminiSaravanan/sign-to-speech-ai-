@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>AI Sign-to-Speech Mobile</title>
-  <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #0f172a; color: #fff; overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
@@ -29,7 +28,7 @@
     <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
   </div>
   <div id="header">
-    <div id="title">Sign-to-Speech AI v5</div>
+    <div id="title">Sign-to-Speech AI v6</div>
     <button id="voiceBtn" type="button" onclick="toggleVoice()">Voice: ON</button>
   </div>
   <div id="stage">
@@ -72,6 +71,32 @@
       lastSpeakTime = now;
     }
 
+    function loadScript(url) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = url;
+        s.crossOrigin = "anonymous";
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Failed: " + url));
+        document.body.appendChild(s);
+      });
+    }
+
+    async function ensureMediaPipe() {
+      if (typeof Hands !== "undefined") return "https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/";
+      const bases = [
+        "https://" + "://unpkg.com",
+        "https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/"
+      ];
+      for (const base of bases) {
+        try {
+          await loadScript(base + "hands.js");
+          if (typeof Hands !== "undefined") return base;
+        } catch (e) {}
+      }
+      throw new Error("Network blocked MediaPipe CDN. Switch Wi-Fi/Mobile Data.");
+    }
+
     function classifyGesture(lm) {
       const p0 = lm.at(0), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
       const p10 = lm.at(10), p12 = lm.at(12), p14 = lm.at(14), p16 = lm.at(16), p17 = lm.at(17), p18 = lm.at(18), p20 = lm.at(20);
@@ -111,8 +136,7 @@
         video.srcObject = stream;
         await video.play();
         loadingMsg.textContent = "Loading AI Hand Model...";
-        if (typeof Hands === "undefined") throw new Error("MediaPipe blocked. Check internet.");
-        const cdnBase = "https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/";
+        const cdnBase = await ensureMediaPipe();
         const hands = new Hands({ locateFile: (file) => cdnBase + file });
         hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
         hands.onResults((results) => {
