@@ -3,186 +3,504 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI Sign-to-Speech Mobile</title>
+  <title>Universal AI Sign-to-Speech (ASL • BSL • ISL)</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #0f172a; color: #fff; overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
-    #header { padding: 12px 16px; background: rgba(15, 23, 42, 0.9); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
-    #title { font-weight: 700; font-size: 16px; color: #38bdf8; }
-    #voiceBtn { background: #10b981; color: #fff; border: none; padding: 8px 14px; border-radius: 20px; font-weight: 600; font-size: 13px; }
-    #voiceBtn.off { background: #475569; }
+    #header {
+      padding: 10px 12px; background: rgba(15, 23, 42, 0.95);
+      display: flex; justify-content: space-between; align-items: center; z-index: 10;
+      border-bottom: 1px solid #1e293b; gap: 6px;
+    }
+    #title { font-weight: 700; font-size: 14px; color: #38bdf8; white-space: nowrap; }
+    .hdr-btns { display: flex; gap: 6px; align-items: center; }
+    .pill-btn {
+      background: #1e293b; color: #fff; border: 1px solid #334155; padding: 6px 11px;
+      border-radius: 16px; font-weight: 700; font-size: 12px; cursor: pointer;
+    }
+    .pill-btn.active { background: #10b981; border-color: #10b981; }
     #stage { position: relative; flex: 1; width: 100%; background: #000; overflow: hidden; }
-    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
-    #hud { position: absolute; bottom: 20px; left: 16px; right: 16px; background: rgba(15, 23, 42, 0.85); padding: 16px; border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; z-index: 10; }
-    #signLabel { font-size: 24px; font-weight: 800; color: #f8fafc; }
-    #statusText { font-size: 12px; color: #94a3b8; margin-top: 4px; }
-    #startOverlay { position: fixed; inset: 0; background: #0f172a; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
-    #startBtn { margin-top: 20px; background: #0284c7; color: #fff; border: none; padding: 18px 34px; font-size: 18px; font-weight: 700; border-radius: 14px; }
+    video, canvas {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      object-fit: cover; transform: scaleX(-1);
+    }
+    #hud {
+      position: absolute; bottom: 12px; left: 12px; right: 12px;
+      background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px);
+      padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.4);
+      z-index: 10; display: flex; flex-direction: column; gap: 8px;
+    }
+    .top-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    #signLabel { font-size: 18px; font-weight: 800; color: #f8fafc; }
+    #handBadge { font-size: 11px; background: #0284c7; padding: 3px 8px; border-radius: 8px; font-weight: 700; white-space: nowrap; }
+    #holdBarWrap { width: 100%; height: 6px; background: #1e293b; border-radius: 4px; overflow: hidden; }
+    #holdBar { width: 0%; height: 100%; background: #22c55e; transition: width 0.08s linear; }
+    #sentenceBox {
+      background: #020617; border: 1px solid #334155; border-radius: 10px;
+      padding: 8px 10px; min-height: 40px; font-size: 14px; color: #38bdf8;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    #sentenceText { flex: 1; word-break: break-word; }
+    .sent-actions { display: flex; gap: 5px; }
+    .act-btn {
+      border: none; border-radius: 8px; padding: 6px 9px; font-size: 11px;
+      font-weight: 700; color: #fff; cursor: pointer;
+    }
+    #speakSentBtn { background: #10b981; }
+    #delWordBtn { background: #f59e0b; }
+    #clearSentBtn { background: #ef4444; }
+    #trainDrawer {
+      display: none; background: #1e293b; padding: 10px; border-radius: 10px;
+      flex-direction: column; gap: 8px;
+    }
+    #trainDrawer.open { display: flex; }
+    .train-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    #customWordInput {
+      flex: 1; min-width: 140px; padding: 8px 10px; border-radius: 8px; border: 1px solid #475569;
+      background: #0f172a; color: #fff; font-size: 13px;
+    }
+    #saveSignBtn { background: #8b5cf6; }
+    #exportBtn { background: #0284c7; }
+    #importBtn { background: #0d9488; }
+    #resetCustomBtn { background: #475569; }
+    #startOverlay {
+      position: fixed; inset: 0; background: #0f172a; z-index: 50;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px; text-align: center;
+    }
+    #startBtn {
+      margin-top: 20px; background: #0284c7; color: #fff; border: none;
+      padding: 18px 34px; font-size: 18px; font-weight: 700; border-radius: 14px;
+    }
   </style>
 </head>
 <body>
   <div id="startOverlay">
-    <h1 style="font-size:26px; color:#38bdf8;">AI Sign-to-Speech App</h1>
-    <p style="color:#94a3b8; margin-top:8px; max-width:300px;">Real-time hand gesture recognition with instant mobile voice output.</p>
-    <button id="startBtn" type="button" onclick="startApp()">Start Camera & Voice</button>
+    <h1 style="font-size:24px; color:#38bdf8;">Universal Sign-to-Speech AI</h1>
+    <p style="color:#94a3b8; margin-top:8px; max-width:320px; font-size:14px;">
+      Automatic ASL • BSL • ISL Detection • Live Sentence Builder • Expandable AI Vocabulary
+    </p>
+    <button id="startBtn" type="button" onclick="startApp()">Start Camera &amp; Voice</button>
     <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
   </div>
+
   <div id="header">
-    <div id="title">Sign-to-Speech AI v6</div>
-    <button id="voiceBtn" type="button" onclick="toggleVoice()">Voice: ON</button>
+    <div id="title">Universal Sign AI (ASL•BSL•ISL)</div>
+    <div class="hdr-btns">
+      <button id="trainToggleBtn" class="pill-btn" type="button" onclick="toggleTrain()">+ Add Sign</button>
+      <button id="voiceBtn" class="pill-btn active" type="button" onclick="toggleVoice()">Voice: ON</button>
+    </div>
   </div>
+
   <div id="stage">
     <video id="webcam" autoplay playsinline muted></video>
     <canvas id="overlay"></canvas>
+
     <div id="hud">
-      <div id="signLabel">Waiting for hand...</div>
-      <div id="statusText">Hold your hand in front of the camera</div>
+      <div class="top-row">
+        <div id="signLabel">Waiting for hand...</div>
+        <div id="handBadge">AUTO 1H/2H</div>
+      </div>
+
+      <div id="holdBarWrap"><div id="holdBar"></div></div>
+
+      <div id="sentenceBox">
+        <div id="sentenceText">Sentence: (hold signs 1.2s to build)</div>
+        <div class="sent-actions">
+          <button id="speakSentBtn" class="act-btn" type="button" onclick="speakSentence()">Speak</button>
+          <button id="delWordBtn" class="act-btn" type="button" onclick="deleteLastWord()">Undo</button>
+          <button id="clearSentBtn" class="act-btn" type="button" onclick="clearSentence()">Clear</button>
+        </div>
+      </div>
+
+      <div id="trainDrawer">
+        <div style="font-size:12px; color:#cbd5e1;">
+          Hold any <b>1-hand or 2-hand (ASL/BSL/ISL)</b> sign, enter meaning, and tap <b>Save</b>:
+        </div>
+        <div class="train-row">
+          <input id="customWordInput" type="text" placeholder="e.g. Namaste / Emergency / Mother" />
+          <button id="saveSignBtn" class="act-btn" type="button" onclick="saveCustomSign()">Save</button>
+          <button id="exportBtn" class="act-btn" type="button" onclick="exportSigns()">Export</button>
+          <button id="importBtn" class="act-btn" type="button" onclick="document.getElementById('importFile').click()">Import</button>
+          <button id="resetCustomBtn" class="act-btn" type="button" onclick="clearCustomSigns()">Reset</button>
+          <input id="importFile" type="file" accept=".json" style="display:none" onchange="importSigns(event)" />
+        </div>
+        <div id="customCount" style="font-size:11px; color:#94a3b8;">Custom trained signs: 0</div>
+      </div>
     </div>
   </div>
+
   <script>
     const video = document.getElementById("webcam");
     const canvas = document.getElementById("overlay");
     const ctx = canvas.getContext("2d");
     const signLabel = document.getElementById("signLabel");
-    const statusText = document.getElementById("statusText");
+    const handBadge = document.getElementById("handBadge");
+    const holdBar = document.getElementById("holdBar");
+    const sentenceText = document.getElementById("sentenceText");
     const startOverlay = document.getElementById("startOverlay");
     const startBtn = document.getElementById("startBtn");
     const loadingMsg = document.getElementById("loadingMsg");
     const voiceBtn = document.getElementById("voiceBtn");
-    let voiceEnabled = true, lastSpoken = "", lastSpeakTime = 0;
+    const trainDrawer = document.getElementById("trainDrawer");
+    const customWordInput = document.getElementById("customWordInput");
+    const customCount = document.getElementById("customCount");
 
+    let voiceEnabled = true;
+    let sentenceWords = new Array();
+    let currentCandidate = "";
+    let candidateStart = 0;
+    let wordCommitted = false;
+    let latestFeatureVec = null;
+    let latestHandCount = 0;
+    let customSigns = JSON.parse(localStorage.getItem("universalSignsV1") || "[]");
+
+    const HOLD_MS = 1200;
     const CONN_PAIRS = "0-1,1-2,2-3,3-4,0-5,5-6,6-7,7-8,5-9,9-10,10-11,11-12,9-13,13-14,14-15,15-16,13-17,17-18,18-19,19-20,0-17".split(",");
+
+    updateCustomCount();
 
     function toggleVoice() {
       voiceEnabled = !voiceEnabled;
       voiceBtn.textContent = voiceEnabled ? "Voice: ON" : "Voice: OFF";
-      voiceBtn.classList.toggle("off", !voiceEnabled);
+      voiceBtn.classList.toggle("active", voiceEnabled);
     }
 
-    function speak(phrase) {
-      if (!voiceEnabled || !phrase || !("speechSynthesis" in window)) return;
-      const now = Date.now();
-      if (phrase === lastSpoken && now - lastSpeakTime < 3000) return;
+    function toggleTrain() {
+      trainDrawer.classList.toggle("open");
+    }
+
+    function updateCustomCount() {
+      customCount.textContent = "Custom trained signs: " + customSigns.length;
+    }
+
+    function speakText(text) {
+      if (!voiceEnabled || !text || !("speechSynthesis" in window)) return;
       window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(phrase);
-      utter.rate = 1.05;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.rate = 1.0;
       window.speechSynthesis.speak(utter);
-      lastSpoken = phrase;
-      lastSpeakTime = now;
     }
 
-    function loadScript(url) {
-      return new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = url;
-        s.crossOrigin = "anonymous";
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error("Failed: " + url));
-        document.body.appendChild(s);
-      });
+    function renderSentence() {
+      sentenceText.textContent = sentenceWords.length > 0
+        ? sentenceWords.join(" ")
+        : "Sentence: (hold signs 1.2s to build)";
     }
 
-    async function ensureMediaPipe() {
-      if (typeof Hands !== "undefined") return "https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/";
-      const bases = [
-        "https://" + "://unpkg.com",
-        "https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/"
-      ];
-      for (const base of bases) {
-        try {
-          await loadScript(base + "hands.js");
-          if (typeof Hands !== "undefined") return base;
-        } catch (e) {}
-      }
-      throw new Error("Network blocked MediaPipe CDN. Switch Wi-Fi/Mobile Data.");
+    function speakSentence() {
+      if (sentenceWords.length > 0) speakText(sentenceWords.join(" "));
     }
 
-    function classifyGesture(lm) {
-      const p0 = lm.at(0), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
-      const p10 = lm.at(10), p12 = lm.at(12), p14 = lm.at(14), p16 = lm.at(16), p17 = lm.at(17), p18 = lm.at(18), p20 = lm.at(20);
-
-      const palmWidth = Math.hypot(p5.x - p17.x, p5.y - p17.y);
-      const thumbSpread = Math.hypot(p4.x - p5.x, p4.y - p5.y);
-      const thumb = thumbSpread > palmWidth * 0.55 ? 1 : 0;
-
-      const idx = p8.y < p6.y ? 1 : 0;
-      const mid = p12.y < p10.y ? 1 : 0;
-      const ring = p16.y < p14.y ? 1 : 0;
-      const pinky = p20.y < p18.y ? 1 : 0;
-
-      const key = thumb + "," + idx + "," + mid + "," + ring + "," + pinky;
-      const pinch = Math.hypot(p4.x - p8.x, p4.y - p8.y);
-
-      if (pinch < palmWidth * 0.35 && mid === 1 && ring === 1 && pinky === 1) return { label: "OK / ASL 'F'", speak: "Okay" };
-      if (key === "0,0,0,0,0") return { label: "FIST / ASL 'S'", speak: "Stop" };
-      if (key === "1,1,1,1,1") return { label: "OPEN PALM / HELLO", speak: "Hello" };
-      if (key === "0,1,1,0,0") return { label: "PEACE / ASL 'V'", speak: "Peace" };
-      if (key === "1,0,0,0,0" && p4.y < p0.y) return { label: "THUMBS UP / GOOD", speak: "Good job" };
-      if (key === "0,1,0,0,0") return { label: "POINT / ASL 'D'", speak: "Look here" };
-      if (key === "1,1,0,0,1") return { label: "I LOVE YOU (ASL)", speak: "I love you" };
-      if (key === "0,1,0,0,1") return { label: "ROCK ON", speak: "Rock on" };
-      if (key === "1,0,0,0,1") return { label: "CALL ME / ASL 'Y'", speak: "Call me" };
-      if (key === "0,1,1,1,0") return { label: "THREE / ASL 'W'", speak: "Three" };
-      if (key === "0,1,1,1,1") return { label: "FOUR / ASL 'B'", speak: "Four" };
-      return { label: "FINGERS: " + (thumb + idx + mid + ring + pinky), speak: null };
+    function deleteLastWord() {
+      sentenceWords.pop();
+      renderSentence();
     }
 
-    async function startApp() {
-      loadingMsg.textContent = "Starting camera...";
-      startBtn.disabled = true;
-      try {
-        if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance("Starting"));
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
-        video.srcObject = stream;
-        await video.play();
-        loadingMsg.textContent = "Loading AI Hand Model...";
-        const cdnBase = await ensureMediaPipe();
-        const hands = new Hands({ locateFile: (file) => cdnBase + file });
-        hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
-        hands.onResults((results) => {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
-            for (const lm of results.multiHandLandmarks) {
-              ctx.strokeStyle = "#22c55e";
-              ctx.lineWidth = 3;
-              for (const pair of CONN_PAIRS) {
-                const parts = pair.split("-");
-                const ptA = lm.at(Number(parts.at(0))), ptB = lm.at(Number(parts.at(1)));
-                ctx.beginPath();
-                ctx.moveTo(ptA.x * canvas.width, ptA.y * canvas.height);
-                ctx.lineTo(ptB.x * canvas.width, ptB.y * canvas.height);
-                ctx.stroke();
-              }
-              ctx.fillStyle = "#38bdf8";
-              for (const pt of lm) {
-                ctx.beginPath();
-                ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 5, 0, Math.PI * 2);
-                ctx.fill();
-              }
-              const res = classifyGesture(lm);
-              signLabel.textContent = res.label;
-              statusText.textContent = res.speak ? 'Speaking: "' + res.speak + '"' : "Hand tracked";
-              speak(res.speak);
-            }
-          } else {
-            signLabel.textContent = "No Hand Detected";
-            statusText.textContent = "Show your hand to the camera";
-            lastSpoken = "";
-          }
-        });
-        startOverlay.style.display = "none";
-        async function frameLoop() {
-          if (video.readyState >= 2) await hands.send({ image: video });
-          requestAnimationFrame(frameLoop);
+    function clearSentence() {
+      sentenceWords = new Array();
+      renderSentence();
+    }
+
+    function buildFeatureVector(handList) {
+      const sorted = handList.slice().sort((a, b) => a.at(0).x - b.at(0).x);
+      const vec = new Array();
+      for (const lm of sorted) {
+        const wrist = lm.at(0);
+        const midMcp = lm.at(9);
+        const scale = Math.hypot(midMcp.x - wrist.x, midMcp.y - wrist.y) || 0.1;
+        for (const pt of lm) {
+          vec.push((pt.x - wrist.x) / scale);
+          vec.push((pt.y - wrist.y) / scale);
+          vec.push((pt.z - wrist.z) / scale);
         }
-        frameLoop();
-      } catch (err) {
-        startBtn.disabled = false;
-        loadingMsg.textContent = "Error: " + err.message;
       }
+      return vec;
     }
-  </script>
-</body>
-</html>
+
+    function saveCustomSign() {
+      const word = customWordInput.value.trim();
+      if (!word) { alert("Type a word or phrase first!"); return; }
+      if (!latestFeatureVec) { alert("Hold your hand(s) in front of the camera first!"); return; }
+      customSigns.push({
+        label: word.toUpperCase() + " (TRAINED)",
+        word: word,
+        hands: latestHandCount,
+        vec: latestFeatureVec
+      });
+localStorage.setItem("universalSignsV1", JSON.stringify(customSigns));
+customWordInput.value = "";
+updateCustomCount();
+speakText("Saved " + word);
+}
+function exportSigns() {
+const blob = new Blob([JSON.stringify(customSigns, null, 2)], { type: "application/json" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "sign_vocabulary.json";
+a.click();
+URL.revokeObjectURL(url);
+}
+function importSigns(event) {
+const file = event.target.files.item(0);
+if (!file) return;
+const reader = new FileReader();
+reader.onload = (e) => {
+try {
+const imported = JSON.parse(e.target.result);
+if (Array.isArray(imported)) {
+customSigns = customSigns.concat(imported);
+localStorage.setItem("universalSignsV1", JSON.stringify(customSigns));
+updateCustomCount();
+speakText("Imported " + imported.length + " signs");
+}
+} catch (err) {
+alert("Invalid JSON file");
+}
+};
+reader.readAsText(file);
+}
+function clearCustomSigns() {
+customSigns = new Array();
+localStorage.removeItem("universalSignsV1");
+updateCustomCount();
+}
+function matchCustomSign(vec, handCount) {
+if (!vec || customSigns.length === 0) return null;
+let bestDist = Infinity;
+let bestItem = null;
+for (const item of customSigns) {
+if (item.hands !== handCount || item.vec.length !== vec.length) continue;
+let sumSq = 0;
+for (let i = 0; i < vec.length; i++) {
+const diff = vec.at(i) - item.vec.at(i);
+sumSq += diff * diff;
+}
+const avgDist = Math.sqrt(sumSq / vec.length);
+if (avgDist < bestDist) {
+bestDist = avgDist;
+bestItem = item;
+}
+}
+if (bestItem && bestDist < 0.34) {
+return { label: bestItem.label, word: bestItem.word };
+}
+return null;
+}
+function getFingerStates(lm) {
+const p0 = lm.at(0), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
+const p9 = lm.at(9), p10 = lm.at(10), p12 = lm.at(12), p14 = lm.at(14), p16 = lm.at(16);
+const p17 = lm.at(17), p18 = lm.at(18), p20 = lm.at(20);
+const palmWidth = Math.hypot(p5.x - p17.x, p5.y - p17.y);
+const thumbSpread = Math.hypot(p4.x - p5.x, p4.y - p5.y);
+const thumb = thumbSpread > palmWidth * 0.55 ? 1 : 0;
+const idx = p8.y < p6.y ? 1 : 0;
+const mid = p12.y < p10.y ? 1 : 0;
+const ring = p16.y < p14.y ? 1 : 0;
+const pinky = p20.y < p18.y ? 1 : 0;
+return {
+thumb, idx, mid, ring, pinky,
+key: thumb + "," + idx + "," + mid + "," + ring + "," + pinky,
+palmWidth, p0, p4, p5, p8, p9, p12, p16, p20
+};
+}
+function classifyTwoHands(handA, handB) {
+const sA = getFingerStates(handA);
+const sB = getFingerStates(handB);
+const refScale = (sA.palmWidth + sB.palmWidth) * 0.5 || 0.1;
+const dIdxThumb = Math.min(
+Math.hypot(sA.p8.x - sB.p4.x, sA.p8.y - sB.p4.y),
+Math.hypot(sB.p8.x - sA.p4.x, sB.p8.y - sA.p4.y)
+);
+const dIdxIdx = Math.hypot(sA.p8.x - sB.p8.x, sA.p8.y - sB.p8.y);
+const dIdxMid = Math.min(
+Math.hypot(sA.p8.x - sB.p12.x, sA.p8.y - sB.p12.y),
+Math.hypot(sB.p8.x - sA.p12.x, sB.p8.y - sA.p12.y)
+);
+const dIdxRing = Math.min(
+Math.hypot(sA.p8.x - sB.p16.x, sA.p8.y - sB.p16.y),
+Math.hypot(sB.p8.x - sA.p16.x, sB.p8.y - sA.p16.y)
+);
+const dIdxPinky = Math.min(
+Math.hypot(sA.p8.x - sB.p20.x, sA.p8.y - sB.p20.y),
+Math.hypot(sB.p8.x - sA.p20.x, sB.p8.y - sA.p20.y)
+);
+const wristGap = Math.hypot(sA.p0.x - sB.p0.x, sA.p0.y - sB.p0.y);
+const palmCenterGap = Math.hypot(sA.p9.x - sB.p9.x, sA.p9.y - sB.p9.y);
+if ((sA.key === "1,1,1,1,1" && sB.key === "0,1,0,0,0") || (sB.key === "1,1,1,1,1" && sA.key === "0,1,0,0,0")) {
+if (dIdxThumb < refScale * 0.45) return { label: "BSL/ISL 'A' (2H)", word: "A" };
+if (dIdxIdx < refScale * 0.45) return { label: "BSL/ISL 'E' (2H)", word: "E" };
+if (dIdxMid < refScale * 0.45) return { label: "BSL/ISL 'I' (2H)", word: "I" };
+if (dIdxRing < refScale * 0.45) return { label: "BSL/ISL 'O' (2H)", word: "O" };
+if (dIdxPinky < refScale * 0.45) return { label: "BSL/ISL 'U' (2H)", word: "U" };
+}
+if (sA.key === "1,1,1,1,1" && sB.key === "1,1,1,1,1" && palmCenterGap < refScale * 0.9) {
+return { label: "NAMASTE / THANK YOU (BSL/ISL)", word: "Thank you" };
+}
+if (sA.key === "1,1,1,1,1" && sB.key === "1,1,1,1,1" && wristGap < refScale * 1.4) {
+return { label: "BOOK / READ (BSL/ISL)", word: "Read" };
+}
+if (sA.key === "1,1,1,1,1" && sB.key === "1,1,1,1,1") {
+return { label: "HELLO / STOP (BSL/ISL)", word: "Hello" };
+}
+if (sA.key === "1,0,0,0,0" && sB.key === "1,0,0,0,0" && sA.p4.y < sA.p0.y && sB.p4.y < sB.p0.y) {
+return { label: "GOOD / WELL DONE (BSL/ISL)", word: "Good" };
+}
+if (sA.key === "1,0,0,0,0" && sB.key === "1,0,0,0,0" && sA.p4.y > sA.p0.y && sB.p4.y > sB.p0.y) {
+return { label: "BAD (BSL/ISL)", word: "Bad" };
+}
+if ((sA.key === "1,0,0,0,0" && sB.key === "1,1,1,1,1") || (sB.key === "1,0,0,0,0" && sA.key === "1,1,1,1,1")) {
+return { label: "HELP (ASL/BSL/ISL)", word: "Help" };
+}
+if (sA.key === "0,0,0,0,0" && sB.key === "0,0,0,0,0" && wristGap < refScale * 1.5) {
+return { label: "WORK / SUPPORT (BSL/ISL)", word: "Work" };
+}
+if (dIdxIdx < refScale * 0.45 && sA.idx === 1 && sB.idx === 1) {
+return { label: "FRIEND / TOGETHER (BSL/ISL)", word: "Friend" };
+}
+if (dIdxIdx < refScale * 0.5 && sA.idx === 1 && sA.mid === 1 && sB.idx === 1 && sB.mid === 1) {
+return { label: "HOME / HOUSE (BSL/ISL)", word: "Home" };
+}
+return null;
+}
+function classifySingleHand(lm) {
+const s = getFingerStates(lm);
+const pinchIdx = Math.hypot(s.p4.x - s.p8.x, s.p4.y - s.p8.y);
+const pinchMid = Math.hypot(s.p4.x - s.p12.x, s.p4.y - s.p12.y);
+const idxMidGap = Math.hypot(s.p8.x - s.p12.x, s.p8.y - s.p12.y);
+if (pinchIdx < s.palmWidth * 0.35 && s.mid === 1 && s.ring === 1 && s.pinky === 1) {
+return { label: "OKAY / ASL 'F'", word: "Okay" };
+}
+if (pinchMid < s.palmWidth * 0.35 && s.idx === 1 && s.ring === 1 && s.pinky === 1) {
+return { label: "FEEL / SICK (ASL 8)", word: "Sick" };
+}
+if (s.key === "1,1,1,1,1") return { label: "HELLO / FIVE (ASL•BSL•ISL)", word: "Hello" };
+if (s.key === "1,0,0,0,0" && s.p4.y < s.p0.y) return { label: "GOOD / YES (BSL•ISL•ASL)", word: "Good" };
+if (s.key === "1,0,0,0,0" && s.p4.y > s.p0.y) return { label: "BAD (BSL•ISL•ASL)", word: "Bad" };
+if (s.key === "0,0,0,0,0") return { label: "YES / STOP (ASL•BSL•ISL)", word: "Stop" };
+if (s.key === "0,1,1,0,0" && idxMidGap < s.palmWidth * 0.32) return { label: "YOU / NAME (ASL U)", word: "You" };
+if (s.key === "0,1,1,0,0") return { label: "PEACE / TWO (ASL•BSL•ISL)", word: "Peace" };
+if (s.key === "0,1,0,0,0") return { label: "I / ME / ONE (ASL•BSL•ISL)", word: "I" };
+if (s.key === "1,1,0,0,0") return { label: "GO / LATER (ASL L)", word: "Go" };
+if (s.key === "1,1,0,0,1") return { label: "I LOVE YOU (ASL•ISL)", word: "I love you" };
+if (s.key === "0,1,0,0,1") return { label: "SUPPORT / ROCK ON", word: "Support" };
+if (s.key === "1,0,0,0,1") return { label: "CALL / PHONE (ASL•BSL•ISL)", word: "Call" };
+if (s.key === "0,0,0,0,1") return { label: "WATER / DRINK (BSL•ISL)", word: "Water" };
+if (s.key === "0,1,1,1,0") return { label: "THREE / WATER (ASL W)", word: "Three" };
+if (s.key === "0,1,1,1,1") return { label: "THANK YOU / FOUR (ASL B)", word: "Thank you" };
+return null;
+}
+function loadScript(url) {
+return new Promise((resolve, reject) => {
+const s = document.createElement("script");
+s.src = url;
+s.crossOrigin = "anonymous";
+s.onload = () => resolve();
+s.onerror = () => reject(new Error("Failed: " + url));
+document.body.appendChild(s);
+});
+}
+async function ensureMediaPipe() {
+if (typeof Hands !== "undefined") return "./";
+const bases = [
+"./",
+"https://" + "unpkg.com",
+"https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/"
+];
+for (const base of bases) {
+try {
+await loadScript(base + "hands.js");
+if (typeof Hands !== "undefined") return base;
+} catch (e) {}
+}
+throw new Error("MediaPipe blocked. Upload hands.js to GitHub repo.");
+}
+async function startApp() {
+loadingMsg.textContent = "Starting camera...";
+startBtn.disabled = true;
+try {
+if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
+const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+video.srcObject = stream;
+await video.play();
+loadingMsg.textContent = "Loading AI Hand Model...";
+const basePath = await ensureMediaPipe();
+const hands = new Hands({ locateFile: (file) => basePath + file });
+hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.45, minTrackingConfidence: 0.45 });
+hands.onResults((results) => {
+canvas.width = video.videoWidth;
+canvas.height = video.videoHeight;
+ctx.clearRect(0, 0, canvas.width, canvas.height);
+const handList = results.multiHandLandmarks || new Array();
+latestHandCount = handList.length;
+handBadge.textContent = latestHandCount === 0
+? "AUTO 1H/2H"
+: latestHandCount === 2 ? "2-HAND (BSL/ISL)" : "1-HAND (ASL/BSL/ISL)";
+if (handList.length > 0) {
+latestFeatureVec = buildFeatureVector(handList);
+for (let hIdx = 0; hIdx < handList.length; hIdx++) {
+const handLm = handList.at(hIdx);
+ctx.strokeStyle = hIdx === 0 ? "#22c55e" : "#f59e0b";
+ctx.lineWidth = 3;
+for (const pair of CONN_PAIRS) {
+const parts = pair.split("-");
+const ptA = handLm.at(Number(parts.at(0))), ptB = handLm.at(Number(parts.at(1)));
+ctx.beginPath();
+ctx.moveTo(ptA.x * canvas.width, ptA.y * canvas.height);
+ctx.lineTo(ptB.x * canvas.width, ptB.y * canvas.height);
+ctx.stroke();
+}
+ctx.fillStyle = "#38bdf8";
+for (const pt of handLm) {
+ctx.beginPath();
+ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 4, 0, Math.PI * 2);
+ctx.fill();
+}
+}
+let match = matchCustomSign(latestFeatureVec, handList.length);
+if (!match && handList.length === 2) {
+match = classifyTwoHands(handList.at(0), handList.at(1));
+}
+if (!match) {
+match = classifySingleHand(handList.at(0));
+}
+if (match) {
+signLabel.textContent = match.label;
+if (match.word !== currentCandidate) {
+currentCandidate = match.word;
+candidateStart = Date.now();
+wordCommitted = false;
+}
+const elapsed = Date.now() - candidateStart;
+const pct = Math.min(100, (elapsed / HOLD_MS) * 100);
+holdBar.style.width = pct + "%";
+if (elapsed >= HOLD_MS && !wordCommitted) {
+wordCommitted = true;
+sentenceWords.push(match.word);
+renderSentence();
+speakText(match.word);
+}
+} else {
+signLabel.textContent = handList.length === 2 ? "2 Hands Tracked (Tap + Add Sign)" : "1 Hand Tracked (Tap + Add Sign)";
+holdBar.style.width = "0%";
+currentCandidate = "";
+}
+} else {
+signLabel.textContent = "No Hand Detected";
+holdBar.style.width = "0%";
+currentCandidate = "";
+latestFeatureVec = null;
+}
+});
+startOverlay.style.display = "none";
+async function frameLoop() {
+if (video.readyState >= 2) await hands.send({ image: video });
+requestAnimationFrame(frameLoop);
+}
+frameLoop();
+} catch (err) {
+startBtn.disabled = false;
+loadingMsg.textContent = "Error: " + err.message;
+}
+}
