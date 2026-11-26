@@ -87,7 +87,8 @@
 
       const key = thumb + "," + idx + "," + mid + "," + ring + "," + pinky;
       const pinch = Math.hypot(p4.x - p8.x, p4.y - p8.y);
-
+      const hands = new Hands({ locateFile: (file) => "https://jsdelivr.net" + file });
+      
       if (pinch < palmWidth * 0.35 && mid === 1 && ring === 1 && pinky === 1) return { label: "OK / ASL 'F'", speak: "Okay" };
       if (key === "0,0,0,0,0") return { label: "FIST / ASL 'S'", speak: "Stop" };
       if (key === "1,1,1,1,1") return { label: "OPEN PALM / HELLO", speak: "Hello" };
