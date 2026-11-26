@@ -81,11 +81,11 @@
       Automatic ASL • BSL • ISL Detection • Live Sentence Builder • Expandable AI Vocabulary
     </p>
     <button id="startBtn" type="button" onclick="startApp()">Start Camera &amp; Voice</button>
-    <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
+    <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Ready v10 — Tap button</p>
   </div>
 
   <div id="header">
-    <div id="title">Universal Sign AI (ASL•BSL•ISL)</div>
+    <div id="title">Universal Sign AI v10</div>
     <div class="hdr-btns">
       <button id="trainToggleBtn" class="pill-btn" type="button" onclick="toggleTrain()">+ Add Sign</button>
       <button id="voiceBtn" class="pill-btn active" type="button" onclick="toggleVoice()">Voice: ON</button>
@@ -153,7 +153,14 @@
     let wordCommitted = false;
     let latestFeatureVec = null;
     let latestHandCount = 0;
-    let customSigns = JSON.parse(localStorage.getItem("universalSignsV1") || "[]");
+    let customSigns = new Array();
+
+    try {
+      const savedRaw = localStorage.getItem("universalSignsV1");
+      if (savedRaw) customSigns = JSON.parse(savedRaw);
+    } catch (e) {
+      customSigns = new Array();
+    }
 
     const HOLD_MS = 1200;
     const CONN_PAIRS = "0-1,1-2,2-3,3-4,0-5,5-6,6-7,7-8,5-9,9-10,10-11,11-12,9-13,13-14,14-15,15-16,13-17,17-18,18-19,19-20,0-17".split(",");
@@ -223,18 +230,18 @@
       if (!word) { alert("Type a word or phrase first!"); return; }
       if (!latestFeatureVec) { alert("Hold your hand(s) in front of the camera first!"); return; }
       customSigns.push({
-        label: word.toUpperCase() + " (TRAINED)",
-        word: word,
-        hands: latestHandCount,
-        vec: latestFeatureVec
-      });
+label: word.toUpperCase() + " (TRAINED)",
+word: word,
+hands: latestHandCount,
+vec: latestFeatureVec
+});
 localStorage.setItem("universalSignsV1", JSON.stringify(customSigns));
 customWordInput.value = "";
 updateCustomCount();
 speakText("Saved " + word);
 }
 function exportSigns() {
-const blob = new Blob([JSON.stringify(customSigns, null, 2)], { type: "application/json" });
+const blob = new Blob(new Array(JSON.stringify(customSigns, null, 2)), { type: "application/json" });
 const url = URL.createObjectURL(blob);
 const a = document.createElement("a");
 a.href = url;
@@ -403,28 +410,29 @@ document.body.appendChild(s);
 }
 async function ensureMediaPipe() {
 if (typeof Hands !== "undefined") return "./";
-const bases = [
+const bases = new Array(
 "./",
 "https://" + "unpkg.com",
 "https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/"
-];
+);
 for (const base of bases) {
 try {
+loadingMsg.textContent = "Trying model source: " + base;
 await loadScript(base + "hands.js");
 if (typeof Hands !== "undefined") return base;
 } catch (e) {}
 }
-throw new Error("MediaPipe blocked. Upload hands.js to GitHub repo.");
+throw new Error("Could not load hands.js. Make sure hands.js is uploaded to your GitHub repo.");
 }
 async function startApp() {
-loadingMsg.textContent = "Starting camera...";
+loadingMsg.textContent = "Button tapped! Starting camera...";
 startBtn.disabled = true;
 try {
 if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
 video.srcObject = stream;
 await video.play();
-loadingMsg.textContent = "Loading AI Hand Model...";
+loadingMsg.textContent = "Camera ready! Loading AI Hand Model...";
 const basePath = await ensureMediaPipe();
 const hands = new Hands({ locateFile: (file) => basePath + file });
 hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.45, minTrackingConfidence: 0.45 });
