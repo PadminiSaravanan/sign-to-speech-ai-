@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>AI Sign-to-Speech Mobile</title>
- <script src="https://jsdeliver.net" crossorigin="anonymous"></script>
+  <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #0f172a; color: #fff; overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
@@ -29,7 +29,7 @@
     <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
   </div>
   <div id="header">
-    <div id="title">Sign-to-Speech AI v4</div>
+    <div id="title">Sign-to-Speech AI v5</div>
     <button id="voiceBtn" type="button" onclick="toggleVoice()">Voice: ON</button>
   </div>
   <div id="stage">
@@ -87,8 +87,6 @@
 
       const key = thumb + "," + idx + "," + mid + "," + ring + "," + pinky;
       const pinch = Math.hypot(p4.x - p8.x, p4.y - p8.y);
-      const hands = new Hands({ locateFile: (file) => "https://jsdeliver.net" + file });
-
 
       if (pinch < palmWidth * 0.35 && mid === 1 && ring === 1 && pinky === 1) return { label: "OK / ASL 'F'", speak: "Okay" };
       if (key === "0,0,0,0,0") return { label: "FIST / ASL 'S'", speak: "Stop" };
@@ -114,7 +112,8 @@
         await video.play();
         loadingMsg.textContent = "Loading AI Hand Model...";
         if (typeof Hands === "undefined") throw new Error("MediaPipe blocked. Check internet.");
-        const hands = new Hands({ locateFile: (file) => "https://jsdelivr.net" + file });
+        const cdnBase = "https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/";
+        const hands = new Hands({ locateFile: (file) => cdnBase + file });
         hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
         hands.onResults((results) => {
           canvas.width = video.videoWidth;
