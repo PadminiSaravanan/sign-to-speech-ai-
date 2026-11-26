@@ -29,7 +29,7 @@
     <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
   </div>
   <div id="header">
-    <div id="title">Sign-to-Speech AI v2</div>
+    <div id="title">Sign-to-Speech AI v3</div>
     <button id="voiceBtn" type="button" onclick="toggleVoice()">Voice: ON</button>
   </div>
   <div id="stage">
@@ -51,6 +51,7 @@
     const loadingMsg = document.getElementById("loadingMsg");
     const voiceBtn = document.getElementById("voiceBtn");
     let voiceEnabled = true, lastSpoken = "", lastSpeakTime = 0;
+
     const CONN_PAIRS = "0-1,1-2,2-3,3-4,0-5,5-6,6-7,7-8,5-9,9-10,10-11,11-12,9-13,13-14,14-15,15-16,13-17,17-18,18-19,19-20,0-17".split(",");
 
     function toggleVoice() {
@@ -72,10 +73,9 @@
     }
 
     function classifyGesture(lm) {
-      const p0 = lm.at(0), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
-      const p10 = lm.at(10), p12 = lm.at(12), p14 = lm.at(14), p16 = lm.at(16), p17 = lm.at(17), p18 = lm.at(18), p20 = lm.at(20);
+      const p0 = lm[0], p4 = lm[4], p5 = lm[5], p6 = lm[6], p8 = lm[8];
+      const p10 = lm[10], p12 = lm[12], p14 = lm[14), p16 = lm[16], p17 = lm[17], p18 = lm[18], p20 = lm[20];
 
-      // Orientation-independent thumb spread check (works on front/rear cameras & both hands)
       const palmWidth = Math.hypot(p5.x - p17.x, p5.y - p17.y);
       const thumbSpread = Math.hypot(p4.x - p5.x, p4.y - p5.y);
       const thumb = thumbSpread > palmWidth * 0.55 ? 1 : 0;
@@ -85,7 +85,7 @@
       const ring = p16.y < p14.y ? 1 : 0;
       const pinky = p20.y < p18.y ? 1 : 0;
 
-      const key = `${thumb},${idx},${mid},${ring},${pinky}`;
+      const key = thumb + "," + idx + "," + mid + "," + ring + "," + pinky;
       const pinch = Math.hypot(p4.x - p8.x, p4.y - p8.y);
 
       if (pinch < palmWidth * 0.35 && mid === 1 && ring === 1 && pinky === 1) return { label: "OK / ASL 'F'", speak: "Okay" };
@@ -99,7 +99,7 @@
       if (key === "1,0,0,0,1") return { label: "CALL ME / ASL 'Y'", speak: "Call me" };
       if (key === "0,1,1,1,0") return { label: "THREE / ASL 'W'", speak: "Three" };
       if (key === "0,1,1,1,1") return { label: "FOUR / ASL 'B'", speak: "Four" };
-      return { label: `FINGERS: ${thumb + idx + mid + ring + pinky}`, speak: null };
+      return { label: "FINGERS: " + (thumb + idx + mid + ring + pinky), speak: null };
     }
 
     async function startApp() {
@@ -111,8 +111,8 @@
         video.srcObject = stream;
         await video.play();
         loadingMsg.textContent = "Loading AI Hand Model...";
-        if (typeof Hands === "undefined") throw new Error("MediaPipe blocked. Check mobile internet.");
-        const hands = new Hands({ locateFile: (file) => `https://jsdelivr.net{file}` });
+        if (typeof Hands === "undefined") throw new Error("MediaPipe blocked. Check internet.");
+        const hands = new Hands({ locateFile: (file) => "https://jsdelivr.net" + file });
         hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
         hands.onResults((results) => {
           canvas.width = video.videoWidth;
@@ -124,7 +124,7 @@
               ctx.lineWidth = 3;
               for (const pair of CONN_PAIRS) {
                 const parts = pair.split("-");
-                const ptA = lm.at(Number(parts.at(0))), ptB = lm.at(Number(parts.at(1)));
+                const ptA = lm[Number(parts[0])], ptB = lm[Number(parts[1])];
                 ctx.beginPath();
                 ctx.moveTo(ptA.x * canvas.width, ptA.y * canvas.height);
                 ctx.lineTo(ptB.x * canvas.width, ptB.y * canvas.height);
@@ -138,7 +138,7 @@
               }
               const res = classifyGesture(lm);
               signLabel.textContent = res.label;
-              statusText.textContent = res.speak ? `Speaking: "${res.speak}"` : "Hand tracked";
+              statusText.textContent = res.speak ? 'Speaking: "' + res.speak + '"' : "Hand tracked";
               speak(res.speak);
             }
           } else {
