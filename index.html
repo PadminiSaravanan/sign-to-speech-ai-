@@ -1,0 +1,150 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AI Sign-to-Speech Mobile</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background: #0f172a; color: #fff; overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
+    #header { padding: 12px 16px; background: rgba(15, 23, 42, 0.9); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+    #title { font-weight: 700; font-size: 16px; color: #38bdf8; }
+    #voiceBtn { background: #10b981; color: #fff; border: none; padding: 8px 14px; border-radius: 20px; font-weight: 600; font-size: 13px; }
+    #voiceBtn.off { background: #475569; }
+    #stage { position: relative; flex: 1; width: 100%; background: #000; overflow: hidden; }
+    video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+    #hud { position: absolute; bottom: 20px; left: 16px; right: 16px; background: rgba(15, 23, 42, 0.85); padding: 16px; border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.4); text-align: center; z-index: 10; }
+    #signLabel { font-size: 24px; font-weight: 800; color: #f8fafc; }
+    #statusText { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+    #startOverlay { position: fixed; inset: 0; background: #0f172a; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+    #startBtn { margin-top: 20px; background: #0284c7; color: #fff; border: none; padding: 18px 34px; font-size: 18px; font-weight: 700; border-radius: 14px; }
+  </style>
+</head>
+<body>
+  <div id="startOverlay">
+    <h1 style="font-size:26px; color:#38bdf8;">AI Sign-to-Speech App</h1>
+    <p style="color:#94a3b8; margin-top:8px; max-width:300px;">Real-time hand gesture recognition with instant mobile voice output.</p>
+    <button id="startBtn" type="button" onclick="startApp()">Start Camera & Voice</button>
+    <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
+  </div>
+  <div id="header">
+    <div id="title">Sign-to-Speech AI</div>
+    <button id="voiceBtn" type="button" onclick="toggleVoice()">Voice: ON</button>
+  </div>
+  <div id="stage">
+    <video id="webcam" autoplay playsinline muted></video>
+    <canvas id="overlay"></canvas>
+    <div id="hud">
+      <div id="signLabel">Waiting for hand...</div>
+      <div id="statusText">Hold your hand in front of the camera</div>
+    </div>
+  </div>
+  <script>
+    const video = document.getElementById("webcam");
+    const canvas = document.getElementById("overlay");
+    const ctx = canvas.getContext("2d");
+    const signLabel = document.getElementById("signLabel");
+    const statusText = document.getElementById("statusText");
+    const startOverlay = document.getElementById("startOverlay");
+    const startBtn = document.getElementById("startBtn");
+    const loadingMsg = document.getElementById("loadingMsg");
+    const voiceBtn = document.getElementById("voiceBtn");
+    let voiceEnabled = true, lastSpoken = "", lastSpeakTime = 0;
+    const CONN_PAIRS = "0-1,1-2,2-3,3-4,0-5,5-6,6-7,7-8,5-9,9-10,10-11,11-12,9-13,13-14,14-15,15-16,13-17,17-18,18-19,19-20,0-17".split(",");
+    function toggleVoice() {
+      voiceEnabled = !voiceEnabled;
+      voiceBtn.textContent = voiceEnabled ? "Voice: ON" : "Voice: OFF";
+      voiceBtn.classList.toggle("off", !voiceEnabled);
+    }
+    function speak(phrase) {
+      if (!voiceEnabled || !phrase || !("speechSynthesis" in window)) return;
+      const now = Date.now();
+      if (phrase === lastSpoken && now - lastSpeakTime < 3000) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(phrase);
+      utter.rate = 1.05;
+      window.speechSynthesis.speak(utter);
+      lastSpoken = phrase;
+      lastSpeakTime = now;
+    }
+    function classifyGesture(lm) {
+      const p0 = lm.at(0), p3 = lm.at(3), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
+      const p10 = lm.at(10), p12 = lm.at(12), p14 = lm.at(14), p16 = lm.at(16), p17 = lm.at(17), p18 = lm.at(18), p20 = lm.at(20);
+      const isRight = p5.x < p17.x;
+      const thumb = isRight ? (p4.x > p3.x ? 1 : 0) : (p4.x < p3.x ? 1 : 0);
+      const idx = p8.y < p6.y ? 1 : 0, mid = p12.y < p10.y ? 1 : 0, ring = p16.y < p14.y ? 1 : 0, pinky = p20.y < p18.y ? 1 : 0;
+      const key = `${thumb},${idx},${mid},${ring},${pinky}`;
+      const pinch = Math.hypot(p4.x - p8.x, p4.y - p8.y);
+      if (pinch < 0.05 && mid === 1 && ring === 1 && pinky === 1) return { label: "OK / ASL 'F'", speak: "Okay" };
+      if (key === "0,0,0,0,0") return { label: "FIST / ASL 'S'", speak: "Stop" };
+      if (key === "1,1,1,1,1") return { label: "OPEN PALM / HELLO", speak: "Hello" };
+      if (key === "0,1,1,0,0") return { label: "PEACE / ASL 'V'", speak: "Peace" };
+      if (key === "1,0,0,0,0" && p4.y < p0.y) return { label: "THUMBS UP / GOOD", speak: "Good job" };
+      if (key === "0,1,0,0,0") return { label: "POINT / ASL 'D'", speak: "Look here" };
+      if (key === "1,1,0,0,1") return { label: "I LOVE YOU (ASL)", speak: "I love you" };
+      if (key === "0,1,0,0,1") return { label: "ROCK ON", speak: "Rock on" };
+      if (key === "1,0,0,0,1") return { label: "CALL ME / ASL 'Y'", speak: "Call me" };
+      if (key === "0,1,1,1,0") return { label: "THREE / ASL 'W'", speak: "Three" };
+      if (key === "0,1,1,1,1") return { label: "FOUR / ASL 'B'", speak: "Four" };
+      return { label: `FINGERS: ${thumb + idx + mid + ring + pinky}`, speak: null };
+    }
+    async function startApp() {
+      loadingMsg.textContent = "Starting camera...";
+      startBtn.disabled = true;
+      try {
+        if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance("Starting"));
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+        video.srcObject = stream;
+        await video.play();
+        loadingMsg.textContent = "Loading AI Hand Model...";
+        if (typeof Hands === "undefined") throw new Error("MediaPipe blocked. Check mobile internet.");
+        const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        hands.onResults((results) => {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+            for (const lm of results.multiHandLandmarks) {
+              ctx.strokeStyle = "#22c55e";
+              ctx.lineWidth = 3;
+              for (const pair of CONN_PAIRS) {
+                const parts = pair.split("-");
+                const ptA = lm.at(Number(parts.at(0))), ptB = lm.at(Number(parts.at(1)));
+                ctx.beginPath();
+                ctx.moveTo(ptA.x * canvas.width, ptA.y * canvas.height);
+                ctx.lineTo(ptB.x * canvas.width, ptB.y * canvas.height);
+                ctx.stroke();
+              }
+              ctx.fillStyle = "#38bdf8";
+              for (const pt of lm) {
+                ctx.beginPath();
+                ctx.arc(pt.x * canvas.width, pt.y * canvas.height, 5, 0, Math.PI * 2);
+                ctx.fill();
+              }
+              const res = classifyGesture(lm);
+              signLabel.textContent = res.label;
+              statusText.textContent = res.speak ? `Speaking: "${res.speak}"` : "Hand tracked";
+              speak(res.speak);
+            }
+          } else {
+            signLabel.textContent = "No Hand Detected";
+            statusText.textContent = "Show your hand to the camera";
+            lastSpoken = "";
+          }
+        });
+        startOverlay.style.display = "none";
+        async function frameLoop() {
+          if (video.readyState >= 2) await hands.send({ image: video });
+          requestAnimationFrame(frameLoop);
+        }
+        frameLoop();
+      } catch (err) {
+        startBtn.disabled = false;
+        loadingMsg.textContent = "Error: " + err.message;
+      }
+    }
+  </script>
+</body>
+</html>
