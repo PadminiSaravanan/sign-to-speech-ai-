@@ -81,11 +81,11 @@
       Automatic ASL • BSL • ISL Detection • Live Sentence Builder • Expandable AI Vocabulary
     </p>
     <button id="startBtn" type="button" onclick="startApp()">Start Camera &amp; Voice</button>
-    <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Ready v10 — Tap button</p>
+    <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Ready v11 — Tap button</p>
   </div>
 
   <div id="header">
-    <div id="title">Universal Sign AI v10</div>
+    <div id="title">Universal Sign AI v11</div>
     <div class="hdr-btns">
       <button id="trainToggleBtn" class="pill-btn" type="button" onclick="toggleTrain()">+ Add Sign</button>
       <button id="voiceBtn" class="pill-btn active" type="button" onclick="toggleVoice()">Voice: ON</button>
@@ -130,7 +130,13 @@
     </div>
   </div>
 
+  <script src="./hands.js"></script>
   <script>
+    window.onerror = function(msg, url, line) {
+      const el = document.getElementById("loadingMsg");
+      if (el) el.textContent = "JS Error (line " + line + "): " + msg;
+    };
+
     const video = document.getElementById("webcam");
     const canvas = document.getElementById("overlay");
     const ctx = canvas.getContext("2d");
@@ -226,10 +232,11 @@
     }
 
     function saveCustomSign() {
-      const word = customWordInput.value.trim();
-      if (!word) { alert("Type a word or phrase first!"); return; }
-      if (!latestFeatureVec) { alert("Hold your hand(s) in front of the camera first!"); return; }
-      customSigns.push({
+Use code with caution.
+const word = customWordInput.value.trim();
+if (!word) { alert("Type a word or phrase first!"); return; }
+if (!latestFeatureVec) { alert("Hold your hand(s) in front of the camera first!"); return; }
+customSigns.push({
 label: word.toUpperCase() + " (TRAINED)",
 word: word,
 hands: latestHandCount,
@@ -398,43 +405,19 @@ if (s.key === "0,1,1,1,0") return { label: "THREE / WATER (ASL W)", word: "Three
 if (s.key === "0,1,1,1,1") return { label: "THANK YOU / FOUR (ASL B)", word: "Thank you" };
 return null;
 }
-function loadScript(url) {
-return new Promise((resolve, reject) => {
-const s = document.createElement("script");
-s.src = url;
-s.crossOrigin = "anonymous";
-s.onload = () => resolve();
-s.onerror = () => reject(new Error("Failed: " + url));
-document.body.appendChild(s);
-});
-}
-async function ensureMediaPipe() {
-if (typeof Hands !== "undefined") return "./";
-const bases = new Array(
-"./",
-"https://" + "unpkg.com",
-"https://" + "cdn.jsdelivr.net/npm/@mediapipe/hands/"
-);
-for (const base of bases) {
-try {
-loadingMsg.textContent = "Trying model source: " + base;
-await loadScript(base + "hands.js");
-if (typeof Hands !== "undefined") return base;
-} catch (e) {}
-}
-throw new Error("Could not load hands.js. Make sure hands.js is uploaded to your GitHub repo.");
-}
 async function startApp() {
 loadingMsg.textContent = "Button tapped! Starting camera...";
 startBtn.disabled = true;
 try {
+if (typeof Hands === "undefined") {
+throw new Error("hands.js did not load! Make sure hands.js is uploaded to your GitHub repo.");
+}
 if ("speechSynthesis" in window) window.speechSynthesis.speak(new SpeechSynthesisUtterance(""));
 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
 video.srcObject = stream;
 await video.play();
 loadingMsg.textContent = "Camera ready! Loading AI Hand Model...";
-const basePath = await ensureMediaPipe();
-const hands = new Hands({ locateFile: (file) => basePath + file });
+const hands = new Hands({ locateFile: (file) => "./" + file });
 hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.45, minTrackingConfidence: 0.45 });
 hands.onResults((results) => {
 canvas.width = video.videoWidth;
