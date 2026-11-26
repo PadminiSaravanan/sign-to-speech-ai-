@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -29,7 +29,7 @@
     <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
   </div>
   <div id="header">
-    <div id="title">Sign-to-Speech AI v3</div>
+    <div id="title">Sign-to-Speech AI v4</div>
     <button id="voiceBtn" type="button" onclick="toggleVoice()">Voice: ON</button>
   </div>
   <div id="stage">
@@ -73,8 +73,8 @@
     }
 
     function classifyGesture(lm) {
-      const p0 = lm[0], p4 = lm[4], p5 = lm[5], p6 = lm[6], p8 = lm[8];
-      const p10 = lm[10], p12 = lm[12], p14 = lm[14), p16 = lm[16], p17 = lm[17], p18 = lm[18], p20 = lm[20];
+      const p0 = lm.at(0), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
+      const p10 = lm.at(10), p12 = lm.at(12), p14 = lm.at(14), p16 = lm.at(16), p17 = lm.at(17), p18 = lm.at(18), p20 = lm.at(20);
 
       const palmWidth = Math.hypot(p5.x - p17.x, p5.y - p17.y);
       const thumbSpread = Math.hypot(p4.x - p5.x, p4.y - p5.y);
@@ -124,7 +124,7 @@
               ctx.lineWidth = 3;
               for (const pair of CONN_PAIRS) {
                 const parts = pair.split("-");
-                const ptA = lm[Number(parts[0])], ptB = lm[Number(parts[1])];
+                const ptA = lm.at(Number(parts.at(0))), ptB = lm.at(Number(parts.at(1)));
                 ctx.beginPath();
                 ctx.moveTo(ptA.x * canvas.width, ptA.y * canvas.height);
                 ctx.lineTo(ptB.x * canvas.width, ptB.y * canvas.height);
