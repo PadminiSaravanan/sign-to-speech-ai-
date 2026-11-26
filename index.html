@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>AI Sign-to-Speech Mobile</title>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+  <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
     body { background: #0f172a; color: #fff; overflow: hidden; height: 100dvh; display: flex; flex-direction: column; }
@@ -29,7 +29,7 @@
     <p id="loadingMsg" style="margin-top:14px; font-size:14px; color:#fbbf24;">Tap button to start</p>
   </div>
   <div id="header">
-    <div id="title">Sign-to-Speech AI</div>
+    <div id="title">Sign-to-Speech AI v2</div>
     <button id="voiceBtn" type="button" onclick="toggleVoice()">Voice: ON</button>
   </div>
   <div id="stage">
@@ -52,11 +52,13 @@
     const voiceBtn = document.getElementById("voiceBtn");
     let voiceEnabled = true, lastSpoken = "", lastSpeakTime = 0;
     const CONN_PAIRS = "0-1,1-2,2-3,3-4,0-5,5-6,6-7,7-8,5-9,9-10,10-11,11-12,9-13,13-14,14-15,15-16,13-17,17-18,18-19,19-20,0-17".split(",");
+
     function toggleVoice() {
       voiceEnabled = !voiceEnabled;
       voiceBtn.textContent = voiceEnabled ? "Voice: ON" : "Voice: OFF";
       voiceBtn.classList.toggle("off", !voiceEnabled);
     }
+
     function speak(phrase) {
       if (!voiceEnabled || !phrase || !("speechSynthesis" in window)) return;
       const now = Date.now();
@@ -68,15 +70,25 @@
       lastSpoken = phrase;
       lastSpeakTime = now;
     }
+
     function classifyGesture(lm) {
-      const p0 = lm.at(0), p3 = lm.at(3), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
+      const p0 = lm.at(0), p4 = lm.at(4), p5 = lm.at(5), p6 = lm.at(6), p8 = lm.at(8);
       const p10 = lm.at(10), p12 = lm.at(12), p14 = lm.at(14), p16 = lm.at(16), p17 = lm.at(17), p18 = lm.at(18), p20 = lm.at(20);
-      const isRight = p5.x < p17.x;
-      const thumb = isRight ? (p4.x > p3.x ? 1 : 0) : (p4.x < p3.x ? 1 : 0);
-      const idx = p8.y < p6.y ? 1 : 0, mid = p12.y < p10.y ? 1 : 0, ring = p16.y < p14.y ? 1 : 0, pinky = p20.y < p18.y ? 1 : 0;
+
+      // Orientation-independent thumb spread check (works on front/rear cameras & both hands)
+      const palmWidth = Math.hypot(p5.x - p17.x, p5.y - p17.y);
+      const thumbSpread = Math.hypot(p4.x - p5.x, p4.y - p5.y);
+      const thumb = thumbSpread > palmWidth * 0.55 ? 1 : 0;
+
+      const idx = p8.y < p6.y ? 1 : 0;
+      const mid = p12.y < p10.y ? 1 : 0;
+      const ring = p16.y < p14.y ? 1 : 0;
+      const pinky = p20.y < p18.y ? 1 : 0;
+
       const key = `${thumb},${idx},${mid},${ring},${pinky}`;
       const pinch = Math.hypot(p4.x - p8.x, p4.y - p8.y);
-      if (pinch < 0.05 && mid === 1 && ring === 1 && pinky === 1) return { label: "OK / ASL 'F'", speak: "Okay" };
+
+      if (pinch < palmWidth * 0.35 && mid === 1 && ring === 1 && pinky === 1) return { label: "OK / ASL 'F'", speak: "Okay" };
       if (key === "0,0,0,0,0") return { label: "FIST / ASL 'S'", speak: "Stop" };
       if (key === "1,1,1,1,1") return { label: "OPEN PALM / HELLO", speak: "Hello" };
       if (key === "0,1,1,0,0") return { label: "PEACE / ASL 'V'", speak: "Peace" };
@@ -89,6 +101,7 @@
       if (key === "0,1,1,1,1") return { label: "FOUR / ASL 'B'", speak: "Four" };
       return { label: `FINGERS: ${thumb + idx + mid + ring + pinky}`, speak: null };
     }
+
     async function startApp() {
       loadingMsg.textContent = "Starting camera...";
       startBtn.disabled = true;
@@ -99,8 +112,8 @@
         await video.play();
         loadingMsg.textContent = "Loading AI Hand Model...";
         if (typeof Hands === "undefined") throw new Error("MediaPipe blocked. Check mobile internet.");
-        const hands = new Hands({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}` });
-        hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+        const hands = new Hands({ locateFile: (file) => `https://jsdelivr.net{file}` });
+        hands.setOptions({ maxNumHands: 2, modelComplexity: 0, minDetectionConfidence: 0.4, minTrackingConfidence: 0.4 });
         hands.onResults((results) => {
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
@@ -124,10 +137,9 @@
                 ctx.fill();
               }
               const res = classifyGesture(lm);
-                const palmWidth = Math.hypot(p5.x - p17.x, p5.y - p17.y);
-   const thumbSpread = Math.hypot(p4.x - p5.x, p4.y - p5.y);
-   const thumb = thumbSpread > palmWidth * 0.75 ? 1 : 0;
-
+              signLabel.textContent = res.label;
+              statusText.textContent = res.speak ? `Speaking: "${res.speak}"` : "Hand tracked";
+              speak(res.speak);
             }
           } else {
             signLabel.textContent = "No Hand Detected";
